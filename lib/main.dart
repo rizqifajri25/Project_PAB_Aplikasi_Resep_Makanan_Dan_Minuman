@@ -86,13 +86,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style: TextStyle(
                           fontSize: 18,
                         ),),),
-                    // TERAKHIR SLIDE KE 17 !!!
+                    SizedBox(height: 20,),
+                    Divider(color: Colors.deepPurple[100],),
+                    SizedBox(height: 4,),
+                    Row(
+                      children: [
+                        SizedBox(width: MediaQuery.of(context).size.width / 3,
+                          child: Row(
+                            children: [
+                              Icon(Icons.lock, color: Colors.amber,),
+                              SizedBox(width: 8,),
+                              Text("Pengguna", style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),),
+                            ],
+                          ),),
+                        Expanded(
+                          child: Text(": $userName",
+                            style: TextStyle(
+                              fontSize: 18,
+                            ),),),
+                        if(isSignedIn) Icon(Icons.edit),
                   ],
                 ),
                 // TODO : 4. Buat ProfileActions yang berisi TextButton sign in/out
+                    SizedBox(height: 4,),
+                    Divider(color: Colors.deepPurple[100],),
+                    SizedBox(height: 20,),
+                    isSignedIn ? TextButton(onPressed: (){},
+                        child: Text('Sign Out'))
+                        : TextButton(onPressed: (){},
+                        child: Text("Sign In"),),
               ],
             ),
-          )
+          ],),),
         ],
       ),
     );
