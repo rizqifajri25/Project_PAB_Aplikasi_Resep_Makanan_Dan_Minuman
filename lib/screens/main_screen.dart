@@ -30,9 +30,8 @@ class _MainScreenState extends State<MainScreen> {
       body: _children[_currentIndex],
       // TODO: 3. Buat properti bottomNavigationBar dengan nilai Theme
       bottomNavigationBar: Theme(
-        // TODO: 4. Buat data dan child dari Theme
         data: Theme.of(context).copyWith(
-          canvasColor: Colors.deepPurple[50],
+          canvasColor: Colors.blue.shade900,
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
@@ -43,39 +42,29 @@ class _MainScreenState extends State<MainScreen> {
           },
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(
-                Icons.home,
-                color: Colors.deepPurple,
-              ),
+              icon: Icon(Icons.home),
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: Icon(
-                Icons.search,
-                color: Colors.deepPurple,
-              ),
+              icon: Icon(Icons.search),
               label: 'Search',
             ),
             BottomNavigationBarItem(
-              icon: Icon(
-                Icons.favorite,
-                color: Colors.deepPurple,
-              ),
+              icon: Icon(Icons.favorite),
               label: 'Favorite',
             ),
             BottomNavigationBarItem(
-              icon: Icon(
-                Icons.person,
-                color: Colors.deepPurple,
-              ),
+              icon: Icon(Icons.person),
               label: 'Profile',
             ),
           ],
-          selectedItemColor: Colors.deepPurple,
-          unselectedItemColor: Colors.deepPurple[100],
+          selectedItemColor: Colors.white,
+          unselectedItemColor: Colors.white70,
           showUnselectedLabels: true,
+          type: BottomNavigationBarType.fixed,
         ),
       ),
+
     );
   }
 }
