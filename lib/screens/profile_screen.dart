@@ -9,6 +9,7 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
+
 class _ProfileScreenState extends State<ProfileScreen> {
   // 1. Declare necessary variables
   bool isSignedIn = false;
@@ -107,7 +108,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: CircleAvatar(
                             radius: 50,
                             backgroundImage: AssetImage(
-                              'assets/placeholder_image.png',
+                              'images/placeholder_image.png',
                             ),
                           ),
                         ),
