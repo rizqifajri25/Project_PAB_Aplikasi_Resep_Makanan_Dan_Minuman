@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:wisata_candi/models/candi.dart';
+import 'package:wisata_candi/models/menu.dart';
 import 'package:wisata_candi/screens/detail_screen.dart';
 
 class ItemCard extends StatelessWidget {
 //   TODO: 1. Deklarasikan variabel yang dibutuhkan dan pasang pada konstruktor
-  final Candi candi;
+  final Menu menu;
 
   const ItemCard({
     super.key,
-    required this.candi,
+    required this.menu,
   });
 
   @override
@@ -19,7 +19,7 @@ class ItemCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => DetailScreen(candi: candi),
+            builder: (context) => DetailScreen(menu: menu),
           ),
         );
       },
@@ -38,7 +38,7 @@ class ItemCard extends StatelessWidget {
               // TODO: 7. Implementasi Hero animation
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(15),
-                child: Image.asset(candi.imageAsset,
+                child: Image.asset(menu.imageAsset,
                   width: double.infinity,
                   fit: BoxFit.cover,
                 ),
@@ -47,7 +47,7 @@ class ItemCard extends StatelessWidget {
             //   TODO: 4. Buat Text sebagai anak dari Column
             Padding(
               padding: EdgeInsets.only(left: 16, top: 8),
-              child: Text(candi.name,
+              child: Text(menu.nama,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -57,7 +57,7 @@ class ItemCard extends StatelessWidget {
             //   TODO: 5. Buat Text sebagai anak dari Column
             Padding(
               padding: EdgeInsets.only(left: 16, bottom: 8),
-              child: Text(candi.type,
+              child: Text(menu.tipe,
                 style: TextStyle(
                   fontSize: 12,
                 ),
