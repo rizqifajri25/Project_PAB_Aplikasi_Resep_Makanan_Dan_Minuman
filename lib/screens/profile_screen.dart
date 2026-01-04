@@ -14,48 +14,43 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool isSignedIn = false;
   String fullName = '';
-  String userName = "";
+  String userName = '';
   int favoriteCandiCount = 0;
 
   String? _profilePhotoBase64;
 
+  // ================= AUTH =================
   void signIn() {
     Navigator.pushNamed(context, "/signin");
   }
 
   void signOut() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isSignedIn', false);
+    await prefs.clear();
 
+    if (!mounted) return;
     setState(() {
       isSignedIn = false;
-      userName = '';
       fullName = '';
+      userName = '';
       _profilePhotoBase64 = null;
     });
   }
 
   void _checkSignInStatus() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
       isSignedIn = prefs.getBool("isSignedIn") ?? false;
     });
   }
 
-  Future<void> _loadPhoto() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _profilePhotoBase64 = prefs.getString("profilePhoto");
-    });
-  }
-
+  // ================= DATA =================
   void _identitas() async {
     final prefs = await SharedPreferences.getInstance();
 
     final encFull = prefs.getString("fullname") ?? "";
     final encUser = prefs.getString("username") ?? "";
-
     final keyString = prefs.getString('key') ?? '';
     final ivString = prefs.getString('iv') ?? '';
 
@@ -68,8 +63,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final iv = encrypt.IV.fromBase64(ivString);
         final encrypter = encrypt.Encrypter(encrypt.AES(key));
 
-        if (encFull.isNotEmpty) decFull = encrypter.decrypt64(encFull, iv: iv);
-        if (encUser.isNotEmpty) decUser = encrypter.decrypt64(encUser, iv: iv);
+        if (encFull.isNotEmpty) {
+          decFull = encrypter.decrypt64(encFull, iv: iv);
+        }
+        if (encUser.isNotEmpty) {
+          decUser = encrypter.decrypt64(encUser, iv: iv);
+        }
       } catch (_) {}
     }
 
@@ -77,6 +76,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       fullName = decFull;
       userName = decUser;
+    });
+  }
+
+  // ================= PHOTO =================
+  Future<void> _loadPhoto() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _profilePhotoBase64 = prefs.getString("profilePhoto");
     });
   }
 
@@ -142,6 +150,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadPhoto();
   }
 
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -151,7 +160,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: colorScheme.background,
       body: Column(
         children: [
-          // HEADER
+          // ================= HEADER =================
           Stack(
             clipBehavior: Clip.none,
             children: [
@@ -164,14 +173,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: Icon(Icons.arrow_back, color: colorScheme.onPrimary),
+                        icon: Icon(Icons.arrow_back,
+                            color: colorScheme.onPrimary),
                       ),
+
                       Align(
                         alignment: Alignment.topCenter,
                         child: Padding(
                           padding: const EdgeInsets.only(top: 18),
                           child: Text(
-                            "PROFILES",
+                            "PROFILE",
                             style: theme.textTheme.titleLarge?.copyWith(
                               color: colorScheme.onPrimary,
                               letterSpacing: 1.2,
@@ -179,11 +190,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
+
+                      // SIGN OUT
+                      if (isSignedIn)
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.logout,
+                                    color: colorScheme.onPrimary),
+                                onPressed: () async {
+                                  final confirm =
+                                  await showDialog<bool>(
+                                    context: context,
+                                    builder: (_) => AlertDialog(
+                                      title: const Text("Sign Out"),
+                                      content: const Text(
+                                          "Yakin ingin keluar dari akun?"),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: const Text("Batal"),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          child: const Text("Keluar"),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+
+                                  if (confirm == true) {
+                                    signOut();
+                                  }
+                                },
+                              ),
+                              Text(
+                                "SIGN OUT",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: colorScheme.onPrimary,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
 
+              // ================= AVATAR =================
               Positioned(
                 left: 0,
                 right: 0,
@@ -194,7 +258,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       CircleAvatar(
                         radius: 55,
-                        backgroundColor: colorScheme.onBackground.withOpacity(.1),
+                        backgroundColor:
+                        colorScheme.onBackground.withOpacity(.1),
                         child: CircleAvatar(
                           radius: 52,
                           backgroundImage: _avatarProvider(),
@@ -203,7 +268,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (isSignedIn)
                         IconButton(
                           onPressed: _changePhoto,
-                          icon: Icon(Icons.camera_alt, color: colorScheme.onPrimary),
+                          icon: Icon(Icons.camera_alt,
+                              color: colorScheme.onPrimary),
                           style: IconButton.styleFrom(
                             backgroundColor: colorScheme.primary,
                           ),
@@ -217,6 +283,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           const SizedBox(height: 80),
 
+          // ================= INFO =================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 22),
             child: Column(
@@ -240,12 +307,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _infoRow(
                   icon: Icons.favorite,
                   label: "Favorite",
-                  value: favoriteCandiCount <= 0
+                  value: favoriteCandiCount == 0
                       ? "-"
                       : favoriteCandiCount.toString(),
                   iconColor: Colors.red,
                 ),
                 Divider(color: theme.dividerColor),
+
+                const SizedBox(height: 30),
+
+                // LOGIN BUTTON
+                if (!isSignedIn)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: signIn,
+                      icon: const Icon(Icons.login),
+                      label: const Text("LOGIN"),
+                      style: ElevatedButton.styleFrom(
+                        padding:
+                        const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -273,9 +360,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: 95,
             child: Text(
               label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
           const Text(": "),

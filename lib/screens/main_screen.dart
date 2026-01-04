@@ -29,7 +29,7 @@ class _MainScreenState extends State<MainScreen> {
     final themeProvider = context.watch<ThemeProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Wisata Candi'),
+      appBar: AppBar(title: const Text('Cook.In'),
         actions: [
           Switch(
             value: themeProvider.isDarkMode,

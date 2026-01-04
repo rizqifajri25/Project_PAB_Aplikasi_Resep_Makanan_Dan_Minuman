@@ -1,4 +1,4 @@
-import 'package:wisata_candi/models/menu.dart';
+import 'package:Cook.in/models/menu.dart';
 
 var menuList = [
   Menu(

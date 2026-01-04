@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:wisata_candi/models/menu.dart';
-import 'package:wisata_candi/screens/detail_screen.dart';
+import 'package:Cook.in/models/menu.dart';
+import 'package:Cook.in/screens/detail_screen.dart';
 
 class ItemCard extends StatelessWidget {
 //   TODO: 1. Deklarasikan variabel yang dibutuhkan dan pasang pada konstruktor

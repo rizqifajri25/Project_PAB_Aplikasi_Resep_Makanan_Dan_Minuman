@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:wisata_candi/screens/home_screen.dart';
-import 'package:wisata_candi/screens/main_screen.dart';
-import 'package:wisata_candi/screens/signInscreen.dart';
-import 'package:wisata_candi/screens/signUpscreen.dart';
+import 'package:Cook.in/screens/home_screen.dart';
+import 'package:Cook.in/screens/main_screen.dart';
+import 'package:Cook.in/screens/signInscreen.dart';
+import 'package:Cook.in/screens/signUpscreen.dart';
 
 import 'theme/app_theme.dart';
 import 'theme/theme_provider.dart';
@@ -33,7 +33,7 @@ class MyApp extends StatelessWidget {
       curve: Curves.easeInOut,
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'Wisata Candi',
+        title: 'Cook.In',
 
         // 🔥 Theme global
         theme: AppTheme.lightTheme,
