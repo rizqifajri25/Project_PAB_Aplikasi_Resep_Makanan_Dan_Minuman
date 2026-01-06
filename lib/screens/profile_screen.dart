@@ -1,7 +1,9 @@
 import 'dart:convert';
+
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -33,6 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       isSignedIn = false;
       fullName = '';
       userName = '';
+      favoriteCandiCount = 0;
       _profilePhotoBase64 = null;
     });
   }
@@ -45,7 +48,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  // ================= DATA =================
+  // ================= IDENTITAS =================
   void _identitas() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -79,6 +82,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  // ================= FAVORITE (INTI PERBAIKAN) =================
+  void _loadFavoriteCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> favorites =
+        prefs.getStringList('favorites') ?? [];
+
+    if (!mounted) return;
+    setState(() {
+      favoriteCandiCount = favorites.length;
+    });
+  }
+
   // ================= PHOTO =================
   Future<void> _loadPhoto() async {
     final prefs = await SharedPreferences.getInstance();
@@ -87,6 +102,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _profilePhotoBase64 = prefs.getString("profilePhoto");
     });
   }
+
+  Future<bool> _requestPermission(ImageSource source) async {
+    if (source == ImageSource.camera) {
+      final status = await Permission.camera.request();
+      return status.isGranted;
+    } else {
+
+      final status = await Permission.photos.request();
+
+      if (status.isGranted) return true;
+
+      final storageStatus = await Permission.storage.request();
+      return storageStatus.isGranted;
+    }
+  }
+
 
   Future<void> _changePhoto() async {
     if (!isSignedIn) return;
@@ -113,12 +144,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (source == null) return;
 
+    final allowed = await _requestPermission(source);
+    if (!allowed) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Izin akses ditolak"),
+        ),
+      );
+      return;
+    }
+
     final picker = ImagePicker();
     final xFile = await picker.pickImage(
       source: source,
       imageQuality: 75,
       maxWidth: 900,
     );
+
     if (xFile == null) return;
 
     final bytes = await xFile.readAsBytes();
@@ -142,12 +185,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return const AssetImage('images/placeholder_image.png');
   }
 
+
+  // ================= INIT =================
   @override
   void initState() {
     super.initState();
     _checkSignInStatus();
     _identitas();
     _loadPhoto();
+    _loadFavoriteCount(); // ⬅️ sinkron dengan DetailScreen
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadFavoriteCount(); // ⬅️ update saat kembali ke profile
   }
 
   // ================= UI =================
@@ -158,217 +210,172 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: colorScheme.background,
-      body: Column(
-        children: [
-          // ================= HEADER =================
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                height: 210,
-                width: double.infinity,
-                color: colorScheme.primary,
-                child: SafeArea(
-                  child: Stack(
-                    children: [
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(Icons.arrow_back,
-                            color: colorScheme.onPrimary),
-                      ),
-
-                      Align(
-                        alignment: Alignment.topCenter,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 18),
-                          child: Text(
-                            "PROFILE",
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              color: colorScheme.onPrimary,
-                              letterSpacing: 1.2,
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  height: 210,
+                  width: double.infinity,
+                  color: colorScheme.primary,
+                  child: SafeArea(
+                    child: Stack(
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: Icon(Icons.arrow_back,
+                              color: colorScheme.onPrimary),
+                        ),
+                        Align(
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 18),
+                            child: Text(
+                              "PROFILE",
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                color: colorScheme.onPrimary,
+                                letterSpacing: 1.2,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-
-                      // SIGN OUT
-                      if (isSignedIn)
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.logout,
-                                    color: colorScheme.onPrimary),
-                                onPressed: () async {
-                                  final confirm =
-                                  await showDialog<bool>(
-                                    context: context,
-                                    builder: (_) => AlertDialog(
-                                      title: const Text("Sign Out"),
-                                      content: const Text(
-                                          "Yakin ingin keluar dari akun?"),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, false),
-                                          child: const Text("Batal"),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, true),
-                                          child: const Text("Keluar"),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-
-                                  if (confirm == true) {
-                                    signOut();
-                                  }
-                                },
-                              ),
-                              Text(
-                                "SIGN OUT",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: colorScheme.onPrimary,
-                                  letterSpacing: 1.1,
+                        if (isSignedIn)
+                          Positioned(
+                            right: 8,
+                            top: 8,
+                            child: Column(
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.logout,
+                                      color: colorScheme.onPrimary),
+                                  onPressed: () async {
+                                    final confirm =
+                                    await showDialog<bool>(
+                                      context: context,
+                                      builder: (_) => AlertDialog(
+                                        title: const Text("Sign Out"),
+                                        content: const Text(
+                                            "Yakin ingin keluar dari akun?"),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, false),
+                                            child: const Text("Batal"),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
+                                            child: const Text("Keluar"),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm == true) signOut();
+                                  },
                                 ),
-                              ),
-                            ],
+                                Text(
+                                  "SIGN OUT",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.onPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // ================= AVATAR =================
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: -55,
-                child: Center(
-                  child: Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      CircleAvatar(
-                        radius: 55,
-                        backgroundColor:
-                        colorScheme.onBackground.withOpacity(.1),
-                        child: CircleAvatar(
-                          radius: 52,
-                          backgroundImage: _avatarProvider(),
-                        ),
-                      ),
-                      if (isSignedIn)
-                        IconButton(
-                          onPressed: _changePhoto,
-                          icon: Icon(Icons.camera_alt,
-                              color: colorScheme.onPrimary),
-                          style: IconButton.styleFrom(
-                            backgroundColor: colorScheme.primary,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 80),
-
-          // ================= INFO =================
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 22),
-            child: Column(
-              children: [
-                Divider(color: theme.dividerColor),
-
-                _infoRow(
-                  icon: Icons.lock,
-                  label: "Pengguna",
-                  value: userName.isEmpty ? "-" : userName,
-                ),
-                Divider(color: theme.dividerColor),
-
-                _infoRow(
-                  icon: Icons.person,
-                  label: "Nama",
-                  value: fullName.isEmpty ? "-" : fullName,
-                ),
-                Divider(color: theme.dividerColor),
-
-                _infoRow(
-                  icon: Icons.favorite,
-                  label: "Favorite",
-                  value: favoriteCandiCount == 0
-                      ? "-"
-                      : favoriteCandiCount.toString(),
-                  iconColor: Colors.red,
-                ),
-                Divider(color: theme.dividerColor),
-
-                const SizedBox(height: 30),
-
-                // LOGIN BUTTON
-                if (!isSignedIn)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: signIn,
-                      icon: const Icon(Icons.login),
-                      label: const Text("LOGIN"),
-                      style: ElevatedButton.styleFrom(
-                        padding:
-                        const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
+                      ],
                     ),
                   ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: -55,
+                  child: Center(
+                    child: Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
+                          radius: 55,
+                          backgroundColor:
+                          colorScheme.onBackground.withOpacity(.1),
+                          child: CircleAvatar(
+                            radius: 52,
+                            backgroundImage: _avatarProvider(),
+                          ),
+                        ),
+                        if (isSignedIn)
+                          IconButton(
+                            onPressed: _changePhoto,
+                            icon: Icon(Icons.camera_alt,
+                                color: colorScheme.onPrimary),
+                            style: IconButton.styleFrom(
+                              backgroundColor: colorScheme.primary,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 80),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 22),
+              child: Column(
+                children: [
+                  Divider(),
+                  _infoRow(Icons.lock, "Pengguna",
+                      userName.isEmpty ? "-" : userName),
+                  Divider(),
+                  _infoRow(Icons.person, "Nama",
+                      fullName.isEmpty ? "-" : fullName),
+                  Divider(),
+                  _infoRow(
+                    Icons.favorite,
+                    "Favorite",
+                    favoriteCandiCount == 0
+                        ? "-"
+                        : favoriteCandiCount.toString(),
+                    iconColor: Colors.red,
+                  ),
+                  Divider(),
+                  const SizedBox(height: 30),
+                  if (!isSignedIn)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: signIn,
+                        icon: const Icon(Icons.login),
+                        label: const Text("LOGIN"),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _infoRow({
-    required IconData icon,
-    required String label,
-    required String value,
-    Color? iconColor,
-  }) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
+  Widget _infoRow(IconData icon, String label, String value,
+      {Color? iconColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
         children: [
-          Icon(icon, color: iconColor ?? colorScheme.onBackground),
+          Icon(icon, color: iconColor),
           const SizedBox(width: 10),
-          SizedBox(
-            width: 95,
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
+          SizedBox(width: 95, child: Text(label)),
           const Text(": "),
           Expanded(
             child: Text(
               value,
-              style: theme.textTheme.bodyMedium,
               overflow: TextOverflow.ellipsis,
             ),
           ),

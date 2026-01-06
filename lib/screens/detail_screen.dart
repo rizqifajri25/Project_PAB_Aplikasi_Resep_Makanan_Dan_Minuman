@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/menu.dart';
+import '../data/menu_data.dart'; // 🔹 tambahan untuk rekomendasi
 
 class DetailScreen extends StatefulWidget {
   final Menu menu;
@@ -23,6 +24,7 @@ class _DetailScreenState extends State<DetailScreen> {
     _loadFavoriteStatus();
   }
 
+  // ================= SIGN IN CHECK =================
   void _checkSignInStatus() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -30,13 +32,17 @@ class _DetailScreenState extends State<DetailScreen> {
     });
   }
 
+  // ================= LOAD FAVORITE =================
   void _loadFavoriteStatus() async {
     final prefs = await SharedPreferences.getInstance();
+    List<String> favorites = prefs.getStringList('favorites') ?? [];
+
     setState(() {
-      isFavorite = prefs.getBool('favorite_${widget.menu.nama}') ?? false;
+      isFavorite = favorites.contains(widget.menu.nama);
     });
   }
 
+  // ================= TOGGLE FAVORITE =================
   Future<void> _toggleFavorite() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -47,12 +53,21 @@ class _DetailScreenState extends State<DetailScreen> {
       return;
     }
 
+    List<String> favorites = prefs.getStringList('favorites') ?? [];
+
     setState(() {
-      isFavorite = !isFavorite;
-      prefs.setBool('favorite_${widget.menu.nama}', isFavorite);
+      if (favorites.contains(widget.menu.nama)) {
+        favorites.remove(widget.menu.nama);
+        isFavorite = false;
+      } else {
+        favorites.add(widget.menu.nama);
+        isFavorite = true;
+      }
+      prefs.setStringList('favorites', favorites);
     });
   }
 
+  // ================= UI HELPER =================
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -71,10 +86,7 @@ class _DetailScreenState extends State<DetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '• ',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          Text('• ', style: Theme.of(context).textTheme.bodyMedium),
           Expanded(
             child: Text(
               text,
@@ -97,7 +109,6 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   // ================= BUILD =================
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -138,7 +149,9 @@ class _DetailScreenState extends State<DetailScreen> {
                     backgroundColor: Colors.black.withOpacity(0.5),
                     child: IconButton(
                       icon: Icon(
-                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        isFavorite
+                            ? Icons.favorite
+                            : Icons.favorite_border,
                         color: Colors.redAccent,
                       ),
                       onPressed: _toggleFavorite,
@@ -157,9 +170,10 @@ class _DetailScreenState extends State<DetailScreen> {
                   // TITLE
                   Text(
                     widget.menu.nama,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 8),
@@ -167,11 +181,8 @@ class _DetailScreenState extends State<DetailScreen> {
                   // CATEGORY
                   Row(
                     children: [
-                      Icon(
-                        Icons.restaurant_menu,
-                        size: 16,
-                        color: colorScheme.primary,
-                      ),
+                      Icon(Icons.restaurant_menu,
+                          size: 16, color: colorScheme.primary),
                       const SizedBox(width: 6),
                       Text(
                         'Kategori Makanan',
@@ -186,9 +197,10 @@ class _DetailScreenState extends State<DetailScreen> {
                   _sectionTitle('Deskripsi'),
                   Text(
                     widget.menu.deskripsi,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      height: 1.5,
-                    ),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(height: 1.5),
                   ),
 
                   const SizedBox(height: 20),
@@ -211,7 +223,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
                   const SizedBox(height: 20),
 
-                  // REKOMENDASI
+                  // ================= REKOMENDASI =================
                   _sectionTitle('Rekomendasi Resep Lain'),
                   const SizedBox(height: 10),
 
@@ -219,48 +231,76 @@ class _DetailScreenState extends State<DetailScreen> {
                     height: 160,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      itemCount: widget.menu.imageUrls.length,
+                      itemCount: menuList
+                          .where(
+                              (menu) => menu.nama != widget.menu.nama)
+                          .length,
                       itemBuilder: (context, index) {
-                        return Container(
-                          width: 140,
-                          margin: const EdgeInsets.only(right: 12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surface,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Theme.of(context).shadowColor,
-                                blurRadius: 6,
+                        final rekomendasiMenu = menuList
+                            .where((menu) =>
+                        menu.nama != widget.menu.nama)
+                            .toList()[index];
+
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    DetailScreen(menu: rekomendasiMenu),
                               ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ClipRRect(
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(12),
+                            );
+                          },
+                          child: Container(
+                            width: 140,
+                            margin:
+                            const EdgeInsets.only(right: 12),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface,
+                              borderRadius:
+                              BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Theme.of(context)
+                                      .shadowColor,
+                                  blurRadius: 6,
                                 ),
-                                child: Image.asset(
-                                  widget.menu.imageUrls[index],
-                                  height: 100,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Text(
-                                  'Resep ${index + 1}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                    fontWeight: FontWeight.bold,
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                              children: [
+                                ClipRRect(
+                                  borderRadius:
+                                  const BorderRadius.vertical(
+                                    top: Radius.circular(12),
+                                  ),
+                                  child: Image.asset(
+                                    rekomendasiMenu.imageAsset,
+                                    height: 100,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
                                   ),
                                 ),
-                              ),
-                            ],
+                                Padding(
+                                  padding:
+                                  const EdgeInsets.all(8),
+                                  child: Text(
+                                    rekomendasiMenu.nama,
+                                    maxLines: 2,
+                                    overflow:
+                                    TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                        fontWeight:
+                                        FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       },
