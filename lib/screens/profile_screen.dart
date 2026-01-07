@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -26,7 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Navigator.pushNamed(context, "/signin");
   }
 
-  void signOut() async {
+  Future<void> signOut() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
 
@@ -40,7 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  void _checkSignInStatus() async {
+  Future<void> _checkSignInStatus() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
@@ -49,7 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ================= IDENTITAS =================
-  void _identitas() async {
+  Future<void> _identitas() async {
     final prefs = await SharedPreferences.getInstance();
 
     final encFull = prefs.getString("fullname") ?? "";
@@ -82,11 +84,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  // ================= FAVORITE (INTI PERBAIKAN) =================
-  void _loadFavoriteCount() async {
+  // ================= FAVORITE =================
+  Future<void> _loadFavoriteCount() async {
     final prefs = await SharedPreferences.getInstance();
-    final List<String> favorites =
-        prefs.getStringList('favorites') ?? [];
+    final favorites = prefs.getStringList('favorites') ?? [];
 
     if (!mounted) return;
     setState(() {
@@ -103,25 +104,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  Future<bool> _requestPermission(ImageSource source) async {
-    if (source == ImageSource.camera) {
-      final status = await Permission.camera.request();
-      return status.isGranted;
-    } else {
-
-      final status = await Permission.photos.request();
-
-      if (status.isGranted) return true;
-
-      final storageStatus = await Permission.storage.request();
-      return storageStatus.isGranted;
-    }
-  }
-
-
   Future<void> _changePhoto() async {
     if (!isSignedIn) return;
 
+    /// ===== WEB / DESKTOP =====
+    if (kIsWeb ||
+        Platform.isWindows ||
+        Platform.isLinux ||
+        Platform.isMacOS) {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+        withData: true,
+      );
+
+      if (result == null || result.files.single.bytes == null) return;
+
+      final base64Str = base64Encode(result.files.single.bytes!);
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString("profilePhoto", base64Str);
+
+      if (!mounted) return;
+      setState(() {
+        _profilePhotoBase64 = base64Str;
+      });
+      return;
+    }
+
+    /// ===== ANDROID / IOS =====
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -129,12 +140,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text("Pilih dari Gallery"),
+              title: const Text("Pilih dari Galeri"),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt),
-              title: const Text("Ambil dari Camera"),
+              title: const Text("Ambil dari Kamera"),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
           ],
@@ -144,27 +155,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (source == null) return;
 
-    final allowed = await _requestPermission(source);
-    if (!allowed) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Izin akses ditolak"),
-        ),
-      );
-      return;
-    }
-
     final picker = ImagePicker();
-    final xFile = await picker.pickImage(
+    final file = await picker.pickImage(
       source: source,
       imageQuality: 75,
       maxWidth: 900,
     );
 
-    if (xFile == null) return;
+    if (file == null) return;
 
-    final bytes = await xFile.readAsBytes();
+    final bytes = await file.readAsBytes();
     final base64Str = base64Encode(bytes);
 
     final prefs = await SharedPreferences.getInstance();
@@ -185,7 +185,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return const AssetImage('images/placeholder_image.png');
   }
 
-
   // ================= INIT =================
   @override
   void initState() {
@@ -193,13 +192,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _checkSignInStatus();
     _identitas();
     _loadPhoto();
-    _loadFavoriteCount(); // ⬅️ sinkron dengan DetailScreen
+    _loadFavoriteCount();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadFavoriteCount(); // ⬅️ update saat kembali ke profile
+    _loadFavoriteCount();
   }
 
   // ================= UI =================
@@ -211,7 +210,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: colorScheme.background,
       body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
         child: Column(
           children: [
             Stack(
@@ -219,7 +217,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Container(
                   height: 210,
-                  width: double.infinity,
                   color: colorScheme.primary,
                   child: SafeArea(
                     child: Stack(
@@ -229,15 +226,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           icon: Icon(Icons.arrow_back,
                               color: colorScheme.onPrimary),
                         ),
-                        Align(
-                          alignment: Alignment.topCenter,
+                        Center(
                           child: Padding(
                             padding: const EdgeInsets.only(top: 18),
                             child: Text(
                               "PROFILE",
                               style: theme.textTheme.titleLarge?.copyWith(
                                 color: colorScheme.onPrimary,
-                                letterSpacing: 1.2,
                               ),
                             ),
                           ),
@@ -246,51 +241,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Positioned(
                             right: 8,
                             top: 8,
-                            child: Column(
-                              children: [
-                                IconButton(
-                                  icon: Icon(Icons.logout,
-                                      color: colorScheme.onPrimary),
-                                  onPressed: () async {
-                                    final confirm =
-                                    await showDialog<bool>(
-                                      context: context,
-                                      builder: (_) => AlertDialog(
-                                        title: const Text("Sign Out"),
-                                        content: const Text(
-                                            "Yakin ingin keluar dari akun?"),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(context, false),
-                                            child: const Text("Batal"),
-                                          ),
-                                          ElevatedButton(
-                                            onPressed: () =>
-                                                Navigator.pop(context, true),
-                                            child: const Text("Keluar"),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                    if (confirm == true) signOut();
-                                  },
-                                ),
-                                Text(
-                                  "SIGN OUT",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: colorScheme.onPrimary,
-                                  ),
-                                ),
-                              ],
+                            child: IconButton(
+                              icon: Icon(Icons.logout,
+                                  color: colorScheme.onPrimary),
+                              onPressed: signOut,
                             ),
                           ),
                       ],
                     ),
                   ),
                 ),
+
+                /// ===== AVATAR =====
                 Positioned(
                   left: 0,
                   right: 0,
@@ -308,13 +270,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             backgroundImage: _avatarProvider(),
                           ),
                         ),
+
+                        /// ===== FIX ICON CAMERA =====
                         if (isSignedIn)
-                          IconButton(
-                            onPressed: _changePhoto,
-                            icon: Icon(Icons.camera_alt,
-                                color: colorScheme.onPrimary),
-                            style: IconButton.styleFrom(
-                              backgroundColor: colorScheme.primary,
+                          GestureDetector(
+                            onTap: _changePhoto,
+                            behavior: HitTestBehavior.opaque,
+                            child: Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.camera_alt,
+                                color: colorScheme.onPrimary,
+                                size: 20,
+                              ),
                             ),
                           ),
                       ],
@@ -323,18 +296,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ],
             ),
+
             const SizedBox(height: 80),
+
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22),
               child: Column(
                 children: [
-                  Divider(),
+                  const Divider(),
                   _infoRow(Icons.lock, "Pengguna",
                       userName.isEmpty ? "-" : userName),
-                  Divider(),
+                  const Divider(),
                   _infoRow(Icons.person, "Nama",
                       fullName.isEmpty ? "-" : fullName),
-                  Divider(),
+                  const Divider(),
                   _infoRow(
                     Icons.favorite,
                     "Favorite",
@@ -343,7 +318,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         : favoriteCandiCount.toString(),
                     iconColor: Colors.red,
                   ),
-                  Divider(),
+                  const Divider(),
                   const SizedBox(height: 30),
                   if (!isSignedIn)
                     SizedBox(
@@ -363,8 +338,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _infoRow(IconData icon, String label, String value,
-      {Color? iconColor}) {
+  Widget _infoRow(
+      IconData icon,
+      String label,
+      String value, {
+        Color? iconColor,
+      }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
