@@ -43,8 +43,6 @@ class _MainScreenState extends State<MainScreen> {
 
       bottomNavigationBar: Theme(
         data: Theme.of(context).copyWith(
-          // ❌ warna hardcode tetap, tapi aman
-          canvasColor: Colors.blue.shade900,
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
